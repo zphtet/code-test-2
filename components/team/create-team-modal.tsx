@@ -1,6 +1,17 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
+import { useState, useEffect } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import {
   Dialog,
   DialogContent,
@@ -8,78 +19,122 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useTeamStore } from "@/zustand/team-store"
-import { validateTeamForm, getInitialFormData } from "@/lib/validation"
-import { regions, countries } from "@/constants/data"
-import type { Team, TeamFormData, FormErrors, Player } from "@/types"
-import { PlayerSelectionInfinite } from "./player-section-infinite"
-import { usePlayers } from "@/hooks/use-players"
-import { PlayerRes, PlayerResponse } from "@/service/fetch-player"
-import { InfiniteData } from "@tanstack/react-query"
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useTeamStore } from "@/zustand/team-store";
+import { regions, countries } from "@/constants/data";
+import type { Team, Player } from "@/types";
+import { PlayerSelectionInfinite } from "./player-section-infinite";
+import { usePlayers } from "@/hooks/use-players";
+import { PlayerRes, PlayerResponse } from "@/service/fetch-player";
+import { InfiniteData } from "@tanstack/react-query";
 
 interface CreateTeamModalProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
+const createTeamSchema = z
+  .object({
+    name: z.string().min(1, "Team name is required"),
+    playerCount: z.string().refine((val) => Number(val) >= 1, {
+      message: "Player count must be at least 1",
+    }),
+    region: z.string().min(1, "Region is required"),
+    country: z.string().min(1, "Country is required"),
+    selectedPlayers: z
+      .array(z.string())
+      .min(1, "At least one player must be selected"),
+  })
+  .refine(
+    (data) => {
+      const playerCount = Number(data.playerCount);
+      return data.selectedPlayers.length <= playerCount;
+    },
+    {
+      message: "Cannot select more players than the player count",
+      path: ["selectedPlayers"],
+    }
+  );
+
+type CreateTeamFormData = z.infer<typeof createTeamSchema>;
+
 export function CreateTeamModal({ open, onOpenChange }: CreateTeamModalProps) {
-  const { addTeam, getPlayerById, syncPlayers } = useTeamStore()
-  const [formData, setFormData] = useState<TeamFormData>(getInitialFormData())
-  const [errors, setErrors] = useState<FormErrors>({})
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { addTeam, getPlayerById, syncPlayers, isTeamNameUnique } =
+    useTeamStore();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const form = useForm<CreateTeamFormData>({
+    resolver: zodResolver(createTeamSchema),
+    defaultValues: {
+      name: "",
+      playerCount: "",
+      region: "",
+      country: "",
+      selectedPlayers: [],
+    },
+  });
 
   // Get players from API
-  const { data } = usePlayers()
-  
+  const { data } = usePlayers();
+
   // Sync API players with store
   useEffect(() => {
     if (data) {
-      const apiPlayers = (data as unknown as InfiniteData<PlayerResponse>).pages.flatMap((page) => 
-        page.data.map((apiPlayer: PlayerRes): Player => ({
-          id: apiPlayer.id.toString(),
-          name: apiPlayer.name,
-          teamId: undefined,
-          teamName: undefined
-        }))
+      const apiPlayers = (
+        data as unknown as InfiniteData<PlayerResponse>
+      ).pages.flatMap((page) =>
+        page.data.map(
+          (apiPlayer: PlayerRes): Player => ({
+            id: apiPlayer.id.toString(),
+            name: apiPlayer.name,
+            teamId: undefined,
+            teamName: undefined,
+          })
+        )
       );
       syncPlayers(apiPlayers);
     }
   }, [data, syncPlayers]);
 
-  const resetForm = () => {
-    setFormData(getInitialFormData())
-    setErrors({})
-  }
+  const handleSubmit = async (formData: CreateTeamFormData) => {
+    // Check if team name is unique
+    if (!isTeamNameUnique(formData.name)) {
+      form.setError("name", {
+        type: "manual",
+        message: "Team name must be unique",
+      });
+      return;
+    }
 
-  const handleSubmit = async () => {
-    const validationErrors = validateTeamForm(formData)
-    setErrors(validationErrors)
-
-    if (Object.keys(validationErrors).length > 0) return
-
-    setIsSubmitting(true)
+    setIsSubmitting(true);
 
     try {
       // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Get selected players from store
       const selectedPlayerObjects = formData.selectedPlayers
         .map((playerId) => {
-          const player = getPlayerById(playerId)
-          return player ? {
-            id: player.id,
-            name: player.name,
-            teamId: undefined,
-            teamName: undefined
-          } : null
+          const player = getPlayerById(playerId);
+          return player
+            ? {
+                id: player.id,
+                name: player.name,
+                teamId: undefined,
+                teamName: undefined,
+              }
+            : null;
         })
-        .filter(Boolean) as Player[]
+        .filter(Boolean) as Player[];
 
       const newTeam: Team = {
         id: Date.now().toString(),
@@ -88,143 +143,190 @@ export function CreateTeamModal({ open, onOpenChange }: CreateTeamModalProps) {
         region: formData.region,
         country: formData.country,
         players: selectedPlayerObjects,
-      }
+      };
 
-      addTeam(newTeam)
+      addTeam(newTeam);
 
-      setIsSubmitting(false)
-      onOpenChange(false)
-      resetForm()
+      setIsSubmitting(false);
+      onOpenChange(false);
+      form.reset();
     } catch (error) {
-      console.error("Error creating team:", error)
-      setErrors({ submit: "Failed to create team. Please try again." })
-      setIsSubmitting(false)
+      console.error("Error creating team:", error);
+      form.setError("root", {
+        type: "manual",
+        message: "Failed to create team. Please try again.",
+      });
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const handlePlayerToggle = (playerId: string) => {
-    const isSelected = formData.selectedPlayers.includes(playerId)
+    const currentPlayers = form.getValues("selectedPlayers");
+    const isSelected = currentPlayers.includes(playerId);
+
     if (isSelected) {
-      setFormData({
-        ...formData,
-        selectedPlayers: formData.selectedPlayers.filter((id) => id !== playerId),
-      })
+      form.setValue(
+        "selectedPlayers",
+        currentPlayers.filter((id) => id !== playerId)
+      );
     } else {
-      setFormData({
-        ...formData,
-        selectedPlayers: [...formData.selectedPlayers, playerId],
-      })
+      form.setValue("selectedPlayers", [...currentPlayers, playerId]);
     }
-  }
+  };
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
-      resetForm()
+      form.reset();
     }
-    onOpenChange(newOpen)
-  }
+    onOpenChange(newOpen);
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto p-8">
+      <DialogContent className="max-w-4xl   max-h-[80vh] overflow-y-auto p-8">
         <DialogHeader className="mb-6">
           <DialogTitle className="text-2xl">Create New Team</DialogTitle>
-          <DialogDescription className="text-lg">Fill in the details to create a new team</DialogDescription>
+          <DialogDescription className="text-lg">
+            Fill in the details to create a new team
+          </DialogDescription>
         </DialogHeader>
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <Label htmlFor="name" className="text-base">Team Name</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter team name"
-                className="h-12 text-base w-full"
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-6"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Team Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter team name"
+                        className="h-12 text-base w-full"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
-            </div>
-            <div className="space-y-3">
-              <Label htmlFor="playerCount" className="text-base">Player Count</Label>
-              <Input
-                id="playerCount"
-                type="number"
-                min="1"
-                value={formData.playerCount}
-                onChange={(e) => setFormData({ ...formData, playerCount: e.target.value })}
-                placeholder="Enter player count"
-                className="h-12 text-base w-full"
+              <FormField
+                control={form.control}
+                name="playerCount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Player Count</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="1"
+                        placeholder="Enter player count"
+                        className="h-12 text-base w-full"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              {errors.playerCount && <p className="text-sm text-destructive">{errors.playerCount}</p>}
             </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <Label htmlFor="region" className="text-base">Region</Label>
-              <Select
-                value={formData.region}
-                onValueChange={(value) => {
-                  setFormData({ ...formData, region: value })
-                  if (errors.region) {
-                    setErrors({ ...errors, region: "" })
-                  }
-                }}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="region"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Region</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="h-12 text-base w-full">
+                          <SelectValue placeholder="Select region" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {regions.map((region) => (
+                          <SelectItem
+                            key={region}
+                            value={region}
+                            className="text-base"
+                          >
+                            {region}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="country"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Country</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="h-12 text-base w-full">
+                          <SelectValue placeholder="Select country" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {countries.map((country) => (
+                          <SelectItem
+                            key={country}
+                            value={country}
+                            className="text-base"
+                          >
+                            {country}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <FormField
+              control={form.control}
+              name="selectedPlayers"
+              render={({ field }) => (
+                <FormItem>
+                  <PlayerSelectionInfinite
+                    selectedPlayers={field.value}
+                    onPlayerToggle={handlePlayerToggle}
+                    error={form.formState.errors.selectedPlayers?.message}
+                  />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                type="button"
               >
-                <SelectTrigger className="h-12 text-base w-full">
-                  <SelectValue placeholder="Select region" />
-                </SelectTrigger>
-                <SelectContent>
-                  {regions.map((region) => (
-                    <SelectItem key={region} value={region} className="text-base">
-                      {region}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.region && <p className="text-sm text-destructive">{errors.region}</p>}
-            </div>
-            <div className="space-y-3">
-              <Label htmlFor="country" className="text-base">Country</Label>
-              <Select
-                value={formData.country}
-                onValueChange={(value) => {
-                  setFormData({ ...formData, country: value })
-                  if (errors.country) {
-                    setErrors({ ...errors, country: "" })
-                  }
-                }}
-              >
-                <SelectTrigger className="h-12 text-base w-full">
-                  <SelectValue placeholder="Select country" />
-                </SelectTrigger>
-                <SelectContent>
-                  {countries.map((country) => (
-                    <SelectItem key={country} value={country} className="text-base">
-                      {country}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.country && <p className="text-sm text-destructive">{errors.country}</p>}
-            </div>
-          </div>
-          <PlayerSelectionInfinite
-            selectedPlayers={formData.selectedPlayers}
-            onPlayerToggle={handlePlayerToggle}
-            error={errors.players}
-          />
-          {errors.players && <p className="text-sm text-destructive">{errors.players}</p>}
-          {errors.submit && <p className="text-sm text-destructive">{errors.submit}</p>}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? "Creating..." : "Create Team"}
-          </Button>
-        </DialogFooter>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Creating..." : "Create Team"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

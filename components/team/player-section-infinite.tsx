@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -11,8 +10,9 @@ import { usePlayers } from "@/hooks/use-players";
 import { PlayerRes, PlayerResponse } from "@/service/fetch-player";
 import { InfiniteData } from "@tanstack/react-query";
 import { useTeamStore } from "@/zustand/team-store";
+import { useInView } from "react-intersection-observer";
 
-interface ExtendedPlayer extends Omit<PlayerRes, 'id'> {
+interface ExtendedPlayer extends Omit<PlayerRes, "id"> {
   id: string;
   teamId?: string;
   teamName?: string;
@@ -32,7 +32,10 @@ export function PlayerSelectionInfinite({
   excludeTeamId,
 }: PlayerSelectionInfiniteProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
+  const { ref: loadMoreRef, inView } = useInView({
+    threshold: 0.1,
+    rootMargin: "20px",
+  });
 
   const {
     data,
@@ -48,7 +51,9 @@ export function PlayerSelectionInfinite({
   const { getPlayerById } = useTeamStore();
 
   // Transform the API response to include team information
-  const players: ExtendedPlayer[] = ((data as unknown as InfiniteData<PlayerResponse>)?.pages ?? []).flatMap((page) => 
+  const players: ExtendedPlayer[] = (
+    (data as unknown as InfiniteData<PlayerResponse>)?.pages ?? []
+  ).flatMap((page) =>
     page.data.map((apiPlayer: PlayerRes): ExtendedPlayer => {
       // Get player from store to check team assignment
       const storePlayer = getPlayerById(apiPlayer.id.toString());
@@ -56,36 +61,18 @@ export function PlayerSelectionInfinite({
         ...apiPlayer,
         id: apiPlayer.id.toString(),
         teamId: storePlayer?.teamId,
-        teamName: storePlayer?.teamName
+        teamName: storePlayer?.teamName,
       };
     })
   );
   const totalCount = players.length;
 
-  // Intersection Observer for infinite scroll
+  // Trigger fetch when inView changes
   useEffect(() => {
-    const trigger = loadMoreTriggerRef.current;
-    if (!trigger) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const [entry] = entries;
-        if (entry.isIntersecting && hasNextPage && !isLoadingMore) {
-          loadMore();
-        }
-      },
-      {
-        threshold: 0.1,
-        rootMargin: "20px",
-      }
-    );
-
-    observer.observe(trigger);
-
-    return () => {
-      observer.unobserve(trigger);
-    };
-  }, [hasNextPage, isLoadingMore, loadMore]);
+    if (inView && hasNextPage && !isLoadingMore) {
+      loadMore();
+    }
+  }, [inView, hasNextPage, isLoadingMore, loadMore]);
 
   const handleRetry = () => {
     refetch();
@@ -93,7 +80,8 @@ export function PlayerSelectionInfinite({
 
   const selectedCount = selectedPlayers.length;
   const availableCount = players.filter(
-    (p: ExtendedPlayer) => !p.teamId || (excludeTeamId && p.teamId === excludeTeamId)
+    (p: ExtendedPlayer) =>
+      !p.teamId || (excludeTeamId && p.teamId === excludeTeamId)
   ).length;
 
   const isPlayerSelectable = (player: ExtendedPlayer) => {
@@ -143,7 +131,12 @@ export function PlayerSelectionInfinite({
               <span>Failed to load players</span>
             </div>
             <p className="text-sm text-muted-foreground">{apiError.message}</p>
-            <Button variant="outline" size="sm" onClick={handleRetry}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRetry}
+              type="button"
+            >
               <RefreshCw className="w-4 h-4 mr-2" />
               Try Again
             </Button>
@@ -176,15 +169,7 @@ export function PlayerSelectionInfinite({
                     }
                     disabled={!isSelectable}
                   />
-                  <Avatar className="w-8 h-8">
-                    <AvatarImage src={`/placeholder.svg`} />
-                    <AvatarFallback>
-                      {player.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </AvatarFallback>
-                  </Avatar>
+
                   <div className="flex-1 min-w-0">
                     <p
                       className={`text-sm font-medium truncate ${
@@ -209,7 +194,7 @@ export function PlayerSelectionInfinite({
             {/* Load More Trigger */}
             {hasNextPage && (
               <div
-                ref={loadMoreTriggerRef}
+                ref={loadMoreRef}
                 className="flex items-center justify-center p-4"
               >
                 {isLoadingMore ? (

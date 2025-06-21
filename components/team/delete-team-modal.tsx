@@ -51,8 +51,8 @@ export function DeleteTeamModal({
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Team</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete "{team?.name}"? This action cannot
-            be undone.
+            Are you sure you want to delete {team?.name}? This action cannot be
+            undone.
             <br />
             <br />
             <strong>

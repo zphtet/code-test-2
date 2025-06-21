@@ -1,16 +1,22 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Users, MapPin, Flag, Edit, Trash2 } from "lucide-react"
-import type { Team } from "@/types"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Users, MapPin, Flag, Edit, Trash2 } from "lucide-react";
+import type { Team } from "@/types";
 
 interface TeamCardProps {
-  team: Team
-  onEdit: (team: Team) => void
-  onDelete: (team: Team) => void
+  team: Team;
+  onEdit: (team: Team) => void;
+  onDelete: (team: Team) => void;
 }
 
 export function TeamCard({ team, onEdit, onDelete }: TeamCardProps) {
@@ -56,7 +62,6 @@ export function TeamCard({ team, onEdit, onDelete }: TeamCardProps) {
             {team.players.map((player) => (
               <div key={player.id} className="flex items-center gap-2">
                 <Avatar className="w-6 h-6">
-                  <AvatarImage src={player.avatar || "/placeholder.svg"} />
                   <AvatarFallback className="text-xs">
                     {player.name
                       .split(" ")
@@ -71,5 +76,5 @@ export function TeamCard({ team, onEdit, onDelete }: TeamCardProps) {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
