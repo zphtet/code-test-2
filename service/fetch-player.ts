@@ -1,5 +1,5 @@
 const API_URL = "https://api.balldontlie.io/epl/v1/players";
-const API_KEY = "15d89067-fc43-4338-802f-22574f3a0f54";
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY!;
 
 export type PlayerRes = {
   id: number;
