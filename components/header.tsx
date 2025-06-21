@@ -4,16 +4,22 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import useUserStore from "@/zustand/user-store";
 import { Menu } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, logOut } = useUserStore();
   const navLinks = [
     { href: "/players", label: "Players" },
     { href: "/teams", label: "Teams" },
   ];
+
+  const handleLogOut = () => {
+    logOut();
+    router.push("/login");
+  };
 
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -72,8 +78,8 @@ export default function Navbar() {
             <span className="text-sm font-medium text-foreground">
               {user?.name}
             </span>
-            <Button variant="default" size="sm" onClick={logOut}>
-              Log out
+            <Button variant="destructive" size="sm" onClick={handleLogOut}>
+              Logout
             </Button>
           </div>
         </div>
