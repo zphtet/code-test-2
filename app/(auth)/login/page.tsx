@@ -43,7 +43,11 @@ export default function LoginPage() {
     console.log("Login submitted:", values);
 
     try {
-      loginUser({ id: "some-radmom-id", name: values.name });
+      loginUser({
+        id: "some-radmom-id",
+        name: values.name,
+        email: "test@test.com",
+      });
       router.push("/");
     } catch (err: unknown) {
       console.log("Error logggin in", err);

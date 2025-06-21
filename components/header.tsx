@@ -6,6 +6,7 @@ import useUserStore from "@/zustand/user-store";
 import { Menu } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -28,7 +29,7 @@ export default function Navbar() {
           {/* Desktop Navigation - Left Side */}
           <div className="hidden md:flex items-center space-x-6">
             {navLinks.map((link) => (
-              <a
+              <Link
                 key={link.href}
                 href={link.href}
                 className={cn(
@@ -39,7 +40,7 @@ export default function Navbar() {
                 )}
               >
                 {link.label}
-              </a>
+              </Link>
             ))}
           </div>
 
@@ -55,7 +56,7 @@ export default function Navbar() {
               <SheetContent side="left" className="w-64">
                 <div className="flex flex-col space-y-4 mt-6">
                   {navLinks.map((link) => (
-                    <a
+                    <Link
                       key={link.href}
                       href={link.href}
                       className={cn(
@@ -66,7 +67,7 @@ export default function Navbar() {
                       )}
                     >
                       {link.label}
-                    </a>
+                    </Link>
                   ))}
                 </div>
               </SheetContent>

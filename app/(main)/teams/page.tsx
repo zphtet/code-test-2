@@ -1,5 +1,7 @@
+import TeamManagement from "@/components/team/team-management";
+
 const TeamsPage = () => {
-  return <div>TeamsPage</div>;
+  return <TeamManagement />;
 };
 
 export default TeamsPage;

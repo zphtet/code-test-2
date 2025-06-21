@@ -1,10 +1,8 @@
 export interface Player {
   id: string;
   name: string;
-  email: string;
-  avatar?: string;
   teamId?: string;
-  teamName?: string; // Add this for displaying team name
+  teamName?: string;
 }
 
 export interface Team {
