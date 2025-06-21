@@ -45,7 +45,7 @@ export default function Navbar() {
           </div>
 
           {/* Mobile Navigation - Left Side */}
-          <div className="md:hidden">
+          <div className="md:hidden ">
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -54,7 +54,7 @@ export default function Navbar() {
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-64">
-                <div className="flex flex-col space-y-4 mt-6">
+                <div className="flex flex-col space-y-4 mt-6 px-5">
                   {navLinks.map((link) => (
                     <Link
                       key={link.href}

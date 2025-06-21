@@ -8,6 +8,9 @@ export const usePlayers = () => {
     queryFn: ({ pageParam }) =>
       fetchPlayers({ pageParam: pageParam as string | undefined }),
     initialPageParam: undefined,
-    getNextPageParam: (lastPage) => lastPage.meta.next_cursor,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.data.length < 10) return undefined;
+      return lastPage.meta.next_cursor;
+    },
   });
 };
